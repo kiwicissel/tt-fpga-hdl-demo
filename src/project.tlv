@@ -1,7 +1,6 @@
 \m5_TLV_version 1d: tl-x.org
 \m5
-   use(m5-1.0)
-   
+   use(m5-1.0)   
 
    // #################################################################
    // #                                                               #
@@ -14,7 +13,6 @@
    // ========
    
    var(my_design, tt_um_example)   /// The name of your top-level TT module, to match your info.yml.
-   var(target, TT10) /// Use "FPGA" for TT03 Demo Boards (without bidirectional I/Os).
    var(debounce_inputs, 0)
           /// Legal values:
           ///   1: Provide synchronization and debouncing on all input signals.
@@ -30,8 +28,6 @@
    // If debouncing, a user's module is within a wrapper, so it has a different name.
    var(user_module_name, m5_if(m5_debounce_inputs, my_design, m5_my_design))
    var(debounce_cnt, m5_if_defined_as(MAKERCHIP, 1, 8'h03, 8'hff))
-   // No TT lab outside of Makerchip.
-   if_defined_as(MAKERCHIP, 1, [''], ['m5_set(in_fpga, 0)'])
 
 
 \SV
@@ -40,7 +36,7 @@
    // =================
    
    // Tiny Tapeout Lab.
-   m4_include_lib(https:/['']/raw.githubusercontent.com/os-fpga/Virtual-FPGA-Lab/5744600215af09224b7235479be84c30c6e50cb7/tlv_lib/tiny_tapeout_lib.tlv)
+   m4_include_lib(https:/['']/raw.githubusercontent.com/os-fpga/Virtual-FPGA-Lab/35e36bd144fddd75495d4cbc01c4fc50ac5bde6f/tlv_lib/tiny_tapeout_lib.tlv)
    // Calculator VIZ.
    m4_include_lib(https:/['']/raw.githubusercontent.com/efabless/chipcraft---mest-course/main/tlv_lib/calculator_shell_lib.tlv)
 
@@ -68,28 +64,31 @@
          // Perform a valid computation when "=" button is pressed.
          $valid = $reset ? 1'b0 :
                            $equals_in && ! >>1$equals_in;
+         
          ?$valid
             // Calculate (all possible operations).
             $sum[7:0] = $val1 + $val2;
             $diff[7:0] = $val1 - $val2;
             $prod[7:0] = $val1 * $val2;
             $quot[7:0] = $val1 / $val2;
-      @2   
+         
+      @2
          // Select the result value, resetting to 0, and retaining if no calculation.
          $out[7:0] = $reset ? 8'b0 :
                      ! $valid ? >>1$out :
-                     ($op[2:0] == 3'b100) ? >>2$mem[7:0]  :
-                     ($op[2:0] == 3'b000) ? $sum  :
-                     ($op[2:0] == 3'b001) ? $diff :
-                     ($op[2:0] == 3'b010) ? $prod :
-                     ($op[2:0] == 3'b010) ? $quot :
+                     ($op == 3'b000) ? $sum  :
+                     ($op == 3'b001) ? $diff :
+                     ($op == 3'b010) ? $prod :
+                     ($op == 3'b011) ? $quot :
+                     ($op == 3'b100) ? >>2$mem :
+                     //default
                                            >>1$out;
-                     
-          // Select the MEM and retaining if no calculation.
+         
          $mem[7:0] = $reset ? 8'b0 :
-                     $valid && ($op[2:0] == 3'b101) ? $val1 :
-                                           >>1$mem;
-       @3
+                     $valid && ($op == 3'b101) ? $val1  :
+                     //default
+                                >>1$mem;
+      @3  
          // Display lower hex digit on 7-segment display.
          $digit[3:0] = $out[3:0];
          *uo_out =
@@ -138,7 +137,7 @@ module top(input logic clk, input logic reset, input logic [31:0] cyc_cnt, outpu
    logic rst_n = ! reset;
    
    // Instantiate the Tiny Tapeout module.
-   m5_my_design tt(.*);
+   m5_user_module_name tt(.*);
    
    assign passed = top.cyc_cnt > 80;
    assign failed = 1'b0;
